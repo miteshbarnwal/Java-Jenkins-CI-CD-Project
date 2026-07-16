@@ -44,6 +44,9 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'java-jenkins-app'
+        CONTAINER_NAME = 'java-jenkins-container'
+        HOST_PORT = '9091'
+        CONTAINER_PORT = '8080'
     }
 
     stages {
@@ -112,6 +115,24 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 bat 'docker build -t %IMAGE_NAME%:%BUILD_NUMBER% -t %IMAGE_NAME%:latest .'
+            }
+        }
+
+
+        stage('Deploy Container') {
+            steps {
+                // Remove the previous container if it exists.
+                bat 'docker rm -f %CONTAINER_NAME% 2>nul || exit /b 0'
+
+                // Create a new container from this Jenkins build's image.
+                bat 'docker run -d --name %CONTAINER_NAME% -p %HOST_PORT%:%CONTAINER_PORT% %IMAGE_NAME%:%BUILD_NUMBER%'
+            }
+        }
+
+
+        stage('Verify Deployment') {
+            steps {
+                bat 'powershell -Command "Start-Sleep -Seconds 5; (Invoke-WebRequest -UseBasicParsing http://localhost:%HOST_PORT%/hello).Content"'
             }
         }
 

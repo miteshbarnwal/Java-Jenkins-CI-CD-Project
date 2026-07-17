@@ -293,7 +293,7 @@ stage('Verify Deployment') {
 //         allowEmptyResults: true
 
 
-// Good jenkins file
+// Good jenkins file for learning
 
     post {
         always {

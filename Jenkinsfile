@@ -7,6 +7,17 @@ pipeline {
         skipDefaultCheckout(true)
     }
 
+// Polling means Jenkins repeatedly asks GitHub:
+//    “Is there any new code?”
+
+// how to integrate polling in current project
+
+//    Add a triggers block to your current Jenkinsfile, after options and before environment
+// Jenkins Check GitHub approximately every 1 minutes.
+       triggers {
+            pollSCM('H/1 * * * *')
+        }
+
 //     Step 8: Define the Docker image name
 // This prevents repeating the image name in multiple places.
 
@@ -129,12 +140,104 @@ pipeline {
             }
         }
 
+// if the container is created then only jenkins sends http request to the running application?
 
-        stage('Verify Deployment') {
-            steps {
-                bat 'powershell -Command "Start-Sleep -Seconds 5; (Invoke-WebRequest -UseBasicParsing http://localhost:%HOST_PORT%/hello).Content"'
-            }
-        }
+//    Yes.
+//
+//    Jenkins reaches the health-check stage only after the docker run command succeeds.
+
+       stage('Verify Deployment') {
+           steps {
+//             // Wait for 15 seconds so the Spring Boot application
+                  // gets enough time to start inside the Docker container.
+               bat 'timeout /t 15 /nobreak'
+
+//
+    // Send an HTTP request to the Spring Boot Actuator health endpoint.
+    // %HOST_PORT% is replaced with the host port value, for example 8080.
+    //
+    // If the application returns a successful HTTP response such as 200,
+    // this command succeeds and Jenkins considers the deployment healthy.
+    //
+    // If the application is not running, the port is wrong, or the endpoint
+    // returns an error such as 404, 500, or 503, --fail makes the command fail.
+               bat 'curl.exe --fail http://localhost:%HOST_PORT%/actuator/health'
+
+
+//                see the endpoint of the actuator returns UP or DOWN but we know that after hitting how jenkins knows the status?
+
+
+// Jenkins knows from the exit code returned by curl.
+//
+// This command:
+//
+// bat 'curl.exe --fail http://localhost:%HOST_PORT%/actuator/health'
+//
+// does two things:
+//
+// 1. Sends the HTTP request
+// 2. Returns success or failure to Jenkins
+// Case 1: Actuator returns UP
+//
+// Usually the response is:
+//
+// {"status":"UP"}
+//
+// with HTTP status:
+//
+// 200 OK
+//
+// Then curl --fail returns exit code:
+//
+// 0
+//
+// Jenkins understands:
+//
+// 0 = success
+//
+// So the stage passes.
+//
+// Case 2: Actuator returns an HTTP error
+//
+// For example:
+//
+// 503 Service Unavailable
+//
+// Then curl --fail returns a non-zero exit code.
+//
+// Jenkins understands:
+//
+// non-zero = failure
+//
+// So the stage fails.
+//
+// Important detail
+//
+// curl --fail mainly checks the HTTP status code, not just the word UP or DOWN.
+//
+// So:
+//
+// HTTP 200
+// → Jenkins sees success
+//
+// HTTP 404 / 500 / 503
+// → Jenkins sees failure
+//
+// Spring Boot Actuator normally returns an unhealthy status with an HTTP error such as 503, so this works well.
+//
+// The complete flow is:
+//
+// Jenkins runs curl
+// → curl calls Actuator
+// → Actuator returns HTTP status
+// → curl converts that into exit code
+// → Jenkins reads exit code
+// → stage passes or fails
+
+
+
+           }
+       }
 
         }
 //         Add pipeline options

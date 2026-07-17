@@ -10,7 +10,7 @@ pipeline {
 // Polling means Jenkins repeatedly asks GitHub:
 //    “Is there any new code?”
 
-// how to integrate polling in current project
+// how to integrate polling in current project we will test that
 
 //    Add a triggers block to your current Jenkinsfile, after options and before environment
 // Jenkins Check GitHub approximately every 1 minutes.

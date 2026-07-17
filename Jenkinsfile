@@ -15,7 +15,7 @@ pipeline {
 //    Add a triggers block to your current Jenkinsfile, after options and before environment
 // Jenkins Check GitHub approximately every 1 minutes.
        triggers {
-            pollSCM('H/1 * * * *')
+            pollSCM('* * * * *')
         }
 
 //     Step 8: Define the Docker image name

@@ -70,6 +70,15 @@ pipeline {
                 sh './mvnw clean verify'
             }
         }
+            // Add JaCoCo report archiving here
+            stage('Archive JaCoCo Report') {
+                steps {
+                    archiveArtifacts(
+                        artifacts: 'target/site/jacoco/**',
+                        allowEmptyArchive: false
+                    )
+                }
+            }
 
         stage('Archive JAR') {
             steps {

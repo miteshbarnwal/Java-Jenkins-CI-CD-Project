@@ -116,36 +116,45 @@ pipeline {
         // Create a Jenkins pipeline stage named "Scan Docker Image".
         stage('Scan Docker Image') {
 
-            // Define the commands that Jenkins should execute in this stage.
+            // Commands inside this block are executed by Jenkins.
             steps {
 
-                // Run multiple Linux shell commands on the Jenkins EC2 server.
+                // Run Linux shell commands on the Jenkins EC2 server.
                 sh '''
-
-                    # Create a folder that Trivy can use for temporary files.
+                    # Create a temporary folder for Trivy.
+                    #
+                    # Trivy needs temporary space while downloading
+                    # and extracting its vulnerability databases.
+                    #
                     # -p means:
-                    # 1. Do not fail if the folder already exists.
-                    # 2. Create parent folders when needed.
+                    # 1. Create the folder if it does not exist.
+                    # 2. Do not fail if the folder already exists.
                     mkdir -p /var/lib/jenkins/trivy-tmp
 
-                    # Tell Trivy to use this folder instead of the small default /tmp folder.
-                    # Then scan the Docker image created by the current Jenkins build.
-                    TMPDIR=/var/lib/jenkins/trivy-tmp trivy image \
-
-                        # Scan only for known software vulnerabilities.
-                        # It does not scan secrets or configuration problems here.
-                        --scanners vuln \
-
-                        # Show only HIGH and CRITICAL severity vulnerabilities.
-                        --severity HIGH,CRITICAL \
-
-                        # Return success even when vulnerabilities are found.
-                        # This allows Jenkins to continue the pipeline for now.
-                        --exit-code 0 \
-
-                        # Scan the exact Docker image created in this Jenkins build.
-                        # Example: java-jenkins-app:10
-                        ${IMAGE_NAME}:${BUILD_NUMBER}
+                    # TMPDIR:
+                    # Tell Trivy to use this folder instead of the small /tmp filesystem.
+                    #
+                    # trivy image:
+                    # Scan a Docker image.
+                    #
+                    # --scanners vuln:
+                    # Scan only for known vulnerabilities.
+                    #
+                    # --severity HIGH,CRITICAL:
+                    # Show only HIGH and CRITICAL vulnerabilities.
+                    #
+                    # --exit-code 0:
+                    # Display vulnerabilities but do not fail the Jenkins pipeline.
+                    #
+                    # IMAGE_NAME:
+                    # java-jenkins-app
+                    #
+                    # BUILD_NUMBER:
+                    # Current Jenkins build number, such as 11 or 12.
+                    #
+                    # Final image example:
+                    # java-jenkins-app:12
+                    TMPDIR=/var/lib/jenkins/trivy-tmp trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 "${IMAGE_NAME}:${BUILD_NUMBER}"
                 '''
             }
         }

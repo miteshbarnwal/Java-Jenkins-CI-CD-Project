@@ -26,6 +26,10 @@ pipeline {
 
         // Port on which Spring Boot runs inside the container.
         CONTAINER_PORT = '8080'
+
+        AWS_REGION = 'us-east-2'
+        AWS_ACCOUNT_ID = '093421299830'
+        ECR_REPOSITORY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/java-jenkins-app"
     }
 
     stages {
@@ -50,6 +54,11 @@ pipeline {
                 // Confirm curl is available.
                 // curl is used later to call the Actuator health endpoint.
                 sh 'curl --version'
+                // Confirm AWS CLI is installed and accessible to Jenkins.
+                sh 'aws --version'
+
+                // Confirm Jenkins EC2 can use its attached IAM role.
+                sh 'aws sts get-caller-identity'
             }
         }
 
@@ -155,6 +164,38 @@ pipeline {
                     # Final image example:
                     # java-jenkins-app:12
                     TMPDIR=/var/lib/jenkins/trivy-tmp trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 "${IMAGE_NAME}:${BUILD_NUMBER}"
+                '''
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                sh '''
+                    # Get a temporary ECR password using the EC2 IAM role.
+                    # Pass it directly to Docker login.
+                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                '''
+            }
+        }
+        stage('Tag Image for ECR') {
+            steps {
+                sh '''
+                    # Create an ECR tag using the Jenkins build number.
+                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${ECR_REPOSITORY}:${BUILD_NUMBER}
+
+                    # Also tag the same image as latest.
+                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${ECR_REPOSITORY}:latest
+                '''
+            }
+        }
+        stage('Push Image to ECR') {
+            steps {
+                sh '''
+                    # Push the exact Jenkins build version.
+                    docker push ${ECR_REPOSITORY}:${BUILD_NUMBER}
+
+                    # Push the latest tag.
+                    docker push ${ECR_REPOSITORY}:latest
                 '''
             }
         }
